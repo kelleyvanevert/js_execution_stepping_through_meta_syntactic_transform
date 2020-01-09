@@ -6,8 +6,8 @@ import "@babel/preset-env-standalone";
 import { parse } from "@babel/parser";
 import traverse from "@babel/traverse";
 import generate from "@babel/generator";
-import { transform } from "@babel/standalone";
 import * as t from "@babel/types";
+import stripIndent from "common-tags/lib/stripIndent";
 
 function _json(data) {
   if (typeof data === "string") {
@@ -17,7 +17,7 @@ function _json(data) {
   } else if (data === null) {
     return t.nullLiteral();
   } else if (data === void 0) {
-    return t.tsUndefinedKeyword();
+    return t.identifier("undefined");
   } else if (data instanceof Array) {
     return t.arrayExpression(data.map(_json));
   } else {
@@ -29,114 +29,167 @@ function _json(data) {
   }
 }
 
+function wrapExpression(expressionNode) {
+  return t.yieldExpression(
+    t.callExpression(t.identifier("__viz.expr"), [
+      expressionNode,
+      _json(expressionNode.type)
+      // _json({
+      //   loc: path.node.loc,
+      //   type: path.node.type
+      // })
+    ])
+  );
+}
+// = inverse of the above
+function getContainedExpression(wrappedExpressionPath) {
+  return wrappedExpressionPath.get("argument").get("arguments")[0];
+}
+
 export default function gen(code) {
+  let _i = 0;
   try {
     const ast = parse(code, {
       sourceType: "module",
       plugins: ["jsx"]
     });
-    console.log("ast", ast);
+
+    console.log(ast);
+
+    let __cached_object_id = -1;
 
     // transform the ast
-    traverse(ast, {
+    const visitor = {
+      Statement(path) {
+        if (t.isBlockStatement(path.node)) return;
+
+        path.insertBefore(
+          t.expressionStatement(
+            t.yieldExpression(
+              t.callExpression(t.identifier("__viz.stm"), [
+                _json(path.node.type)
+                // _json({
+                //   loc: path.node.loc,
+                //   type: path.node.type
+                // })
+              ])
+            )
+          )
+        );
+
+        const p = path.getSibling(path.key - 1);
+        p.skip();
+      },
+      ArrowFunctionExpression(path) {
+        path.replaceWith(
+          t.callExpression(
+            t.memberExpression(
+              t.functionExpression(
+                null,
+                path.node.params,
+                path.node.body,
+                true
+              ),
+              t.identifier("bind")
+            ),
+            [t.thisExpression()]
+          )
+        );
+        path.skip();
+        path
+          .get("callee")
+          .get("object")
+          .traverse(visitor);
+        // * Will be replaced with a generator function hereafter
+        // * TODO: make semantically similar again (bind `this`)
+      },
+      FunctionExpression(path) {
+        if (path.node.generator) {
+          throw new Error("I don't support generator functions yet :|");
+        }
+        path.node.generator = true;
+      },
       FunctionDeclaration(path) {
-        if (t.isProgram(path.parent)) {
-          const componentName = path.node.id.name;
-          path.replaceWith(
-            t.variableDeclaration("const", [
-              t.variableDeclarator(
-                path.node.id,
-                t.callExpression(t.identifier("_LIB.component"), [
-                  t.functionExpression(null, path.node.params, path.node.body),
-                  _json(componentName),
-                  _json(path.node.loc)
-                ])
-              )
-            ])
-          );
-          _reduceBody(
-            path
-              .get("declarations")[0]
-              .get("init")
-              .get("arguments")[0]
-              .get("body"),
-            componentName
-          );
-        } else if (t.isExportDefaultDeclaration(path.parent)) {
-          const componentName = path.node.id.name;
-          path.replaceWith(
-            t.callExpression(t.identifier("_LIB.component"), [
-              t.functionExpression(null, path.node.params, path.node.body),
-              _json(componentName),
-              _json(path.node.loc)
-            ])
-          );
-          _reduceBody(path.get("arguments")[0].get("body"), componentName);
+        if (path.node.generator) {
+          throw new Error("I don't support generator functions yet :|");
+        }
+        path.node.generator = true;
+      },
+      // CallExpression(path) {
+      //   if (t.isMemberExpression(path.node.callee)) {
+      //     // (callee(object, property), arguments)
+      //     // obj.property(...args)
+      //     // ->
+      //     // _expr( _expr(_expr(obj).property) (...args) )
+      //     console.log("call expression on a member");
+      //     const obj = path.get("callee").get("object");
+      //     const id = ++__cached_object_id;
+      //     obj.replaceWith(
+      //       t.assignmentExpression(
+      //         "=",
+      //         t.memberExpression(
+      //           t.identifier("__cached_objects"),
+      //           t.numericLiteral(id),
+      //           true
+      //         ),
+      //         wrapExpression(obj.node)
+      //       )
+      //     );
+
+      //     // path.replaceWith();
+
+      //     // path.skip();
+      //     // getContainedExpression(obj.get("right")).traverse(visitor);
+      //     // path.get("arguments").forEach(arg => {
+      //     //   // yin
+      //     //   arg.replaceWith(wrapExpression(arg.node));
+      //     //   // yang
+      //     //   getContainedExpression(arg).traverse(visitor);
+      //     // });
+      //   }
+      // },
+      Expression: {
+        exit(path) {
+          console.log("e", path.node.type);
+          path.replaceWith(wrapExpression(path.node));
+          path.skip();
         }
       }
-    });
+    };
+
+    traverse(ast, visitor);
 
     const generated = generate(ast, {
       presets: ["react"]
     });
 
-    // Finally, transform again, this time compiling JSX
-    return transform(generated.code, {
-      presets: ["env", "react"]
-    }).code;
+    return stripIndent`
+      function* __viz() {
+        const __cached_objects = {};
+      GEN
+      }
+      __viz.stm = function (meta) {
+        console.log("executing statement:", meta);
+      };
+      __viz.expr = function (value, meta) {
+        console.log("evaluating/executing expression:", meta);
+        return value;
+      };
+      __viz;
+    `.replace(
+      "GEN",
+      generated.code
+        .split("\n")
+        .map(line => "  " + line)
+        .join("\n")
+    );
+
+    // // Finally, transform again, this time compiling JSX
+    // return transform(generated.code, {
+    //   presets: ["env", "react"]
+    // }).code;
   } catch (e) {
     console.error("BABEL ERROR", e);
-    return "BABEL ERROR";
+    return;
   }
-}
-
-function _reduceBody(block_path, componentName) {
-  const stmts = block_path.node.body.reduceRight(
-    (statements, prev, statementIndex) => {
-      return [
-        t.functionDeclaration(
-          t.identifier("S"),
-          [],
-          t.blockStatement([
-            t.expressionStatement(
-              t.callExpression(t.identifier("_LIB.render"), [
-                _json(statementIndex)
-              ])
-            ),
-            prev,
-            ...statements
-          ])
-        ),
-        t.returnStatement(
-          t.jsxElement(
-            t.jsxOpeningElement(
-              t.jsxMemberExpression(
-                t.jsxIdentifier("_LIB"),
-                t.jsxIdentifier("Step")
-              ),
-              [
-                t.jsxAttribute(
-                  t.jsxIdentifier("step"),
-                  t.jsxExpressionContainer(t.identifier("S"))
-                )
-              ],
-              true
-            ),
-            null,
-            []
-          )
-        )
-      ];
-    },
-    []
-  );
-
-  block_path.replaceWith(
-    t.blockStatement([
-      t.expressionStatement(
-        t.callExpression(t.identifier("_LIB.render"), [_json(componentName)])
-      ),
-      ...stmts
-    ])
-  );
 }
