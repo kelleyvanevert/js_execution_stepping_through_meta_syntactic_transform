@@ -30,20 +30,18 @@ function _json(data) {
 }
 
 function wrapExpression(expressionNode) {
-  return t.yieldExpression(
-    t.callExpression(t.identifier("__viz.expr"), [
-      expressionNode,
-      _json(expressionNode.type)
-      // _json({
-      //   loc: path.node.loc,
-      //   type: path.node.type
-      // })
-    ])
-  );
-}
-// = inverse of the above
-function getContainedExpression(wrappedExpressionPath) {
-  return wrappedExpressionPath.get("argument").get("arguments")[0];
+  return t.sequenceExpression([
+    t.yieldExpression(
+      t.callExpression(t.identifier("__viz.expr"), [
+        _json(expressionNode.type)
+        // _json({
+        //   loc: path.node.loc,
+        //   type: path.node.type
+        // })
+      ])
+    ),
+    expressionNode
+  ]);
 }
 
 export default function gen(code) {
@@ -115,39 +113,6 @@ export default function gen(code) {
         }
         path.node.generator = true;
       },
-      // CallExpression(path) {
-      //   if (t.isMemberExpression(path.node.callee)) {
-      //     // (callee(object, property), arguments)
-      //     // obj.property(...args)
-      //     // ->
-      //     // _expr( _expr(_expr(obj).property) (...args) )
-      //     console.log("call expression on a member");
-      //     const obj = path.get("callee").get("object");
-      //     const id = ++__cached_object_id;
-      //     obj.replaceWith(
-      //       t.assignmentExpression(
-      //         "=",
-      //         t.memberExpression(
-      //           t.identifier("__cached_objects"),
-      //           t.numericLiteral(id),
-      //           true
-      //         ),
-      //         wrapExpression(obj.node)
-      //       )
-      //     );
-
-      //     // path.replaceWith();
-
-      //     // path.skip();
-      //     // getContainedExpression(obj.get("right")).traverse(visitor);
-      //     // path.get("arguments").forEach(arg => {
-      //     //   // yin
-      //     //   arg.replaceWith(wrapExpression(arg.node));
-      //     //   // yang
-      //     //   getContainedExpression(arg).traverse(visitor);
-      //     // });
-      //   }
-      // },
       Expression: {
         exit(path) {
           console.log("e", path.node.type);
@@ -171,9 +136,8 @@ export default function gen(code) {
       __viz.stm = function (meta) {
         console.log("executing statement:", meta);
       };
-      __viz.expr = function (value, meta) {
+      __viz.expr = function (meta) {
         console.log("evaluating/executing expression:", meta);
-        return value;
       };
       __viz;
     `.replace(
@@ -183,11 +147,6 @@ export default function gen(code) {
         .map(line => "  " + line)
         .join("\n")
     );
-
-    // // Finally, transform again, this time compiling JSX
-    // return transform(generated.code, {
-    //   presets: ["env", "react"]
-    // }).code;
   } catch (e) {
     console.error("BABEL ERROR", e);
     return;

@@ -42,7 +42,7 @@ const CODE_EXAMPLES = [
 ];
 
 export default function App() {
-  const [code, set_code] = useState(CODE_EXAMPLES[1]);
+  const [code, set_code] = useState(CODE_EXAMPLES[0]);
 
   const generated_code = useMemo(() => gen(code), [code]);
 
