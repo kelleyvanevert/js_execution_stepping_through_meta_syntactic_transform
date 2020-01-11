@@ -15,7 +15,7 @@ function _app_original() {
   console.log("result", result, str);
 }
 
-function* _app_transformed() {
+function* _app_transformed_manually() {
   const _CACHE = {};
 
   yield _stm("const obj = { ... };");
@@ -34,7 +34,7 @@ function* _app_transformed() {
   yield _stm("const result = obj.f(1);");
   const result = yield _expr(
     "obj.f(1)",
-    yield* _wrap(
+    yield* _lift(
       (yield _expr(
         "obj.f",
         (yield _expr("obj", (_CACHE["obj"] = obj))).f
@@ -45,7 +45,7 @@ function* _app_transformed() {
   yield _stm("const str = obj.toString();");
   const str = yield _expr(
     "obj.toString()",
-    yield* _wrap(
+    yield* _lift(
       (yield _expr(
         "obj.toString",
         (yield _expr("obj", (_CACHE["obj"] = obj))).toString
@@ -57,8 +57,47 @@ function* _app_transformed() {
   console.log("result", result, str);
 }
 
-function _wrap(r) {
-  console.log("_wrap", r);
+function* _app_transformed_babel() {
+  const _cache = {};
+
+  yield _stm("VariableDeclaration");
+  const obj = yield _expr("ObjectExpression", {
+    a: yield _expr("NumericLiteral", 41),
+    f: yield _expr("FunctionExpression", function*(b) {
+      yield _stm("ReturnStatement");
+      return yield _expr(
+        "BinaryExpression",
+        (yield _expr(
+          "MemberExpression",
+          (yield _expr("ThisExpression", this)).a
+        )) + (yield _expr("Identifier", b))
+      );
+    })
+  });
+  yield _stm("VariableDeclaration");
+  const result = yield _expr(
+    "CallExpression",
+    yield* _lift(
+      (_cache[0] = yield _expr("Identifier", obj)).f.call(
+        _cache[0],
+        yield _expr("NumericLiteral", 1)
+      )
+    )
+  );
+  yield _stm("VariableDeclaration");
+  const str = yield _expr(
+    "CallExpression",
+    yield* _lift(
+      (_cache[1] = yield _expr("Identifier", obj)).toString.call(_cache[1])
+    )
+  );
+
+  yield "DONE";
+  console.log("result", result, str);
+}
+
+function _lift(r) {
+  console.log("_lift", r);
   if (r && r[Symbol.iterator] && typeof r !== "string" && !Array.isArray(r)) {
     console.log("  ...already a stepper, so OK");
     return r;
@@ -79,7 +118,7 @@ function _expr(info, value) {
   return value;
 }
 
-const a = _app_transformed();
+const a = _app_transformed_babel();
 let v = {};
 
 while (!v.done) {

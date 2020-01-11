@@ -152,3 +152,12 @@ export default function gen(code) {
     return;
   }
 }
+
+function* hi() {
+  const h0 = [f(3), 4];
+
+  const h1 = yield _expr([
+    yield* _lift((yield _expr(f)).call(_cache[5], yield _expr(3))),
+    yield _expr(4)
+  ]);
+}
