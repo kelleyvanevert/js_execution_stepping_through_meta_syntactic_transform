@@ -162,7 +162,7 @@ function* MyTranspiledComponent() {
 
 _(Mathematically speaking, you might say we just run the transpiler on the whole React codebase. Although I admit it didn't even try, I can't imagine this would work, haha.)_
 
-I haven't solved this problem entirely yet, but my current goals is to make it work with a special-purpose transpilation step for component definition functions which basically just implements own versions of the most important hooks. _(The real problem is not so much the delayed render, but the conditional/delayed hook calls. Hence the need to reimplement them.)_ This will look something like this (_TENTATIVE SKETCH ALERT_):
+I haven't solved this problem entirely yet, but my current idea is to make it work with a special-purpose transpilation step for component definition functions which basically just implements own versions of the most important hooks. _(The real problem is not so much the delayed render, but the conditional/delayed hook calls. Hence the need to reimplement them.)_ This will look something like this (_TENTATIVE SKETCH ALERT_):
 
 ```js
 function MyTranspiledComponent(props) {
