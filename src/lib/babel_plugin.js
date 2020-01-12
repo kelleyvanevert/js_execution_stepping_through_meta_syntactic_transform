@@ -25,17 +25,17 @@ export default function(babel) {
 
   let Q = 0;
   function preventloop() {
-    if (++Q > 200) {
+    if (++Q > 1000) {
       throw new Error("LOOP");
     }
   }
 
   function meta(node) {
-    return json(node.type);
-    /*return json({
+    // return json(node.type);
+    return json({
       loc: node.loc,
       type: node.type
-    })*/
+    });
   }
 
   // A dirty trick to get expressionPath.traverse(visitor)
@@ -53,7 +53,7 @@ export default function(babel) {
       path.insertBefore(
         t.expressionStatement(
           t.yieldExpression(
-            t.callExpression(t.identifier("_stm"), [meta(path.node)])
+            t.callExpression(t.identifier("_app._stm"), [meta(path.node)])
           )
         )
       );
@@ -97,8 +97,8 @@ export default function(babel) {
       }
     },
     Expression(path) {
-      console.log("E", path.node.type, "@", path.node.loc.start);
-      preventloop();
+      // console.log("E", path.node.type, "@", path.node.loc.start);
+      // preventloop();
 
       if (t.isCallExpression(path)) {
         const contextual = t.isMemberExpression(path.get("callee"));
@@ -116,10 +116,10 @@ export default function(babel) {
 
         path.replaceWith(
           t.yieldExpression(
-            t.callExpression(t.identifier("_expr"), [
+            t.callExpression(t.identifier("_app._expr"), [
               meta(path.node),
               t.yieldExpression(
-                t.callExpression(t.identifier("_lift"), [
+                t.callExpression(t.identifier("_app._lift"), [
                   t.callExpression(
                     t.memberExpression(
                       contextual
@@ -171,7 +171,7 @@ export default function(babel) {
       } else {
         path.replaceWith(
           t.yieldExpression(
-            t.callExpression(t.identifier("_expr"), [
+            t.callExpression(t.identifier("_app._expr"), [
               meta(path.node),
               path.node
             ])
@@ -192,68 +192,3 @@ export default function(babel) {
     visitor
   };
 }
-
-/*
-
-// TEMPLATE:
-
-  Array.prototype.map = function*(callback) {
-    const mapped = [];
-    for (let i = 0; i < this.length; i++) {
-      mapped[i] = yield* callback(this[i], i, this);
-    }
-    return mapped;
-  };
-
-  Array.prototype.filter = function*(callback) {
-    const filtered = [];
-    for (let i = 0; i < this.length; i++) {
-      if (yield* callback(this[i], i, this)) {
-        filtered.push(this[i]);
-      }
-    }
-    return filtered;
-  };
-
-  Array.prototype.reduce = function*(callback) {
-    const using_initial = arguments.length >= 2;
-    let memo = using_initial ? arguments[1] : this[0];
-    for (let i = using_initial ? 0 : 1; i < this.length; i++) {
-      memo = yield* callback(memo, this[i], i, this);
-    }
-    return memo;
-  };
-
-function* make_app_stepper() {
-  const _cache = {};
-  <PLACE_TRANSFORMED_CODE_HERE>
-}
-
-const stepper = make_app_stepper();
-let state = {};
-
-while (!state.done) {
-  state = stepper.next(state.value);
-}
-
-function _lift(r) {
-  // black-listing built-in iterators, not ideal but good enough for a POC
-  if (r && r[Symbol.iterator] && typeof r !== "string" && !Array.isArray(r)) {
-    return r;
-  } else {
-    return (function*() {
-      return r;
-    })();
-  }
-}
-
-function _stm(meta) {
-  console.log("_stm", meta);
-}
-
-function _expr(meta, value) {
-  console.log("_expr", meta, "->", value);
-  return value;
-}
-
-*/

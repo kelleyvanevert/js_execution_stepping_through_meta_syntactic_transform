@@ -7,157 +7,139 @@ import { parse } from "@babel/parser";
 import traverse from "@babel/traverse";
 import generate from "@babel/generator";
 import * as t from "@babel/types";
-import stripIndent from "common-tags/lib/stripIndent";
 
-function _json(data) {
-  if (typeof data === "string") {
-    return t.stringLiteral(data);
-  } else if (typeof data === "number") {
-    return t.numericLiteral(data);
-  } else if (data === null) {
-    return t.nullLiteral();
-  } else if (data === void 0) {
-    return t.identifier("undefined");
-  } else if (data instanceof Array) {
-    return t.arrayExpression(data.map(_json));
-  } else {
-    return t.objectExpression(
-      Object.entries(data).map(([key, value]) => {
-        return t.objectProperty(t.stringLiteral(key), _json(value));
-      })
-    );
-  }
-}
+import StepperizePlugin from "./babel_plugin";
 
-function wrapExpression(expressionNode) {
-  return t.sequenceExpression([
-    t.yieldExpression(
-      t.callExpression(t.identifier("__viz.expr"), [
-        _json(expressionNode.type)
-        // _json({
-        //   loc: path.node.loc,
-        //   type: path.node.type
-        // })
-      ])
-    ),
-    expressionNode
-  ]);
-}
+const { visitor } = StepperizePlugin({ types: t });
 
 export default function gen(code) {
-  let _i = 0;
-  try {
-    const ast = parse(code, {
-      sourceType: "module",
-      plugins: ["jsx"]
-    });
+  const ast = parse(code, {
+    sourceType: "module",
+    plugins: [
+      // "jsx"
+    ]
+  });
 
-    console.log(ast);
+  traverse(ast, visitor);
 
-    let __cached_object_id = -1;
+  const generated = generate(ast, {
+    presets: [
+      // "react"
+    ]
+  });
 
-    // transform the ast
-    const visitor = {
-      Statement(path) {
-        if (t.isBlockStatement(path.node)) return;
-
-        path.insertBefore(
-          t.expressionStatement(
-            t.yieldExpression(
-              t.callExpression(t.identifier("__viz.stm"), [
-                _json(path.node.type)
-                // _json({
-                //   loc: path.node.loc,
-                //   type: path.node.type
-                // })
-              ])
-            )
-          )
-        );
-
-        const p = path.getSibling(path.key - 1);
-        p.skip();
-      },
-      ArrowFunctionExpression(path) {
-        path.replaceWith(
-          t.callExpression(
-            t.memberExpression(
-              t.functionExpression(
-                null,
-                path.node.params,
-                path.node.body,
-                true
-              ),
-              t.identifier("bind")
-            ),
-            [t.thisExpression()]
-          )
-        );
-        path.skip();
-        path
-          .get("callee")
-          .get("object")
-          .traverse(visitor);
-        // * Will be replaced with a generator function hereafter
-        // * TODO: make semantically similar again (bind `this`)
-      },
-      FunctionExpression(path) {
-        if (path.node.generator) {
-          throw new Error("I don't support generator functions yet :|");
-        }
-        path.node.generator = true;
-      },
-      FunctionDeclaration(path) {
-        if (path.node.generator) {
-          throw new Error("I don't support generator functions yet :|");
-        }
-        path.node.generator = true;
-      },
-      Expression: {
-        exit(path) {
-          console.log("e", path.node.type);
-          path.replaceWith(wrapExpression(path.node));
-          path.skip();
-        }
-      }
-    };
-
-    traverse(ast, visitor);
-
-    const generated = generate(ast, {
-      presets: ["react"]
-    });
-
-    return stripIndent`
-      function* __viz() {
-        const __cached_objects = {};
-      GEN
-      }
-      __viz.stm = function (meta) {
-        console.log("executing statement:", meta);
-      };
-      __viz.expr = function (meta) {
-        console.log("evaluating/executing expression:", meta);
-      };
-      __viz;
-    `.replace(
-      "GEN",
-      generated.code
-        .split("\n")
-        .map(line => "  " + line)
-        .join("\n")
-    );
-  } catch (e) {
-    console.error("BABEL ERROR", e);
-    return;
-  }
+  return generated.code;
 }
 
-function* hi() {
-  const h0 = [f(3), 4];
+export const TEMPLATE = `
+function* _app() {
+  const _cache = {};
 
-  const h1 = yield _expr([
-    yield* _lift((yield _expr(f)).call(_cache[5], yield _expr(3))),
-    yield _expr(4)
-  ]);
+  const _Array_find = Array.prototype.find;
+  Array.prototype.find = function(callback) {
+    return (callback instanceof function*() {}.constructor
+      ? function*(callback) {
+          console.log("!! using lifted version of Array::find");
+          for (let i = 0; i < this.length; i++) {
+            if (yield* callback(this[i], i, this)) {
+              return this[i];
+            }
+          }
+        }
+      : _Array_find
+    ).apply(this, arguments);
+  };
+
+  const _Array_findIndex = Array.prototype.findIndex;
+  Array.prototype.findIndex = function(callback) {
+    return (callback instanceof function*() {}.constructor
+      ? function*(callback) {
+          console.log("!! using lifted version of Array::findIndex");
+          for (let i = 0; i < this.length; i++) {
+            if (yield* callback(this[i], i, this)) {
+              return i;
+            }
+          }
+        }
+      : _Array_findIndex
+    ).apply(this, arguments);
+  };
+
+  const _Array_map = Array.prototype.map;
+  Array.prototype.map = function(callback) {
+    return (callback instanceof function*() {}.constructor
+      ? function*(callback) {
+          console.log("!! using lifted version of Array::map");
+          const mapped = [];
+          for (let i = 0; i < this.length; i++) {
+            mapped[i] = yield* callback(this[i], i, this);
+          }
+          return mapped;
+        }
+      : _Array_map
+    ).apply(this, arguments);
+  };
+
+  const _Array_forEach = Array.prototype.forEach;
+  Array.prototype.forEach = function(callback) {
+    return (callback instanceof function*() {}.constructor
+      ? function*(callback) {
+          console.log("!! using lifted version of Array::forEach");
+          for (let i = 0; i < this.length; i++) {
+            yield* callback(this[i], i, this);
+          }
+        }
+      : _Array_forEach
+    ).apply(this, arguments);
+  };
+
+  const _Array_filter = Array.prototype.filter;
+  Array.prototype.filter = function(callback) {
+    return (callback instanceof function*() {}.constructor
+      ? function*(callback) {
+          console.log("!! using lifted version of Array::filter");
+          const filtered = [];
+          for (let i = 0; i < this.length; i++) {
+            if (yield* callback(this[i], i, this)) {
+              filtered.push(this[i]);
+            }
+          }
+          return filtered;
+        }
+      : _Array_filter
+    ).apply(this, arguments);
+  };
+
+  const _Array_reduce = Array.prototype.reduce;
+  Array.prototype.reduce = function(callback) {
+    return (callback instanceof function*() {}.constructor
+      ? function*(callback) {
+          console.log("!! using lifted version of Array::reduce");
+          const using_initial = arguments.length >= 2;
+          let memo = using_initial ? arguments[1] : this[0];
+          for (let i = using_initial ? 0 : 1; i < this.length; i++) {
+            memo = yield* callback(memo, this[i], i, this);
+          }
+          return memo;
+        }
+      : _Array_reduce
+    ).apply(this, arguments);
+  };
+
+  const _Array_flatMap = Array.prototype.flatMap;
+  Array.prototype.flatMap = function(callback) {
+    return (callback instanceof function*() {}.constructor
+      ? function*(callback) {
+          console.log("!! using lifted version of Array::flatMap");
+          return this.map(callback).flat();
+        }
+      : _Array_flatMap
+    ).apply(this, arguments);
+  };
+
+  GENERATED_CODE;
+
+  return;
 }
+_app;
+`;
