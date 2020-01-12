@@ -8,6 +8,7 @@
 
 ## Artefacts
 
+- [Proof-of-concept visualizer, needs work](https://epic-curran-35ad59.netlify.com/)
 - [AST explorer with the transpiler](https://astexplorer.net/#/gist/ca504f9c414704245b5b4bf816bcf4dd/latest)
 - [CodeSandbox with the React interop idea](https://codesandbox.io/s/generator-react-components-uwhtz?fontsize=14&hidenavigation=1&theme=dark)
 
