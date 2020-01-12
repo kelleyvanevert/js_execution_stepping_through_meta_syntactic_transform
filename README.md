@@ -98,7 +98,7 @@ yield _expr("o.f(a, b)",
 
 Note the temporary storage of the object expression, because it might be a complex expression which should not be evaluated twice. Also, if the member expression is computed (with brackets `[ ]`), the computed property should also be transpiled correctly.
 
-### Interop with the standard library and other code
+### Interop with the standard library
 
 We're "lifting" the code to a different execution semantics. This also means that interop is broken unless cleverly avoided/fixed. There's two "directions" in which the interopability needs fixing: gettings results _back_ from non-user-defined functions, and _passing callbacks_ to other code. (Data is still data, so there's no worry there.)
 
