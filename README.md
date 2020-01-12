@@ -148,7 +148,7 @@ Array.prototype.map = function(callback) {
 
 ### Interop with React
 
-But then here's the main kicker: I don't only want to use this visualizer for plain JavaScript execution, but also (separately) for the visualization of the React hooks render process. (To show the hooks' "hidden" underlying state, and how the whole function gets called on every render, etc.) This is another (quircky) case of an API that needs to be "lifted" to be able to work with iterators/generators. Because how do we deal with a situation like this?
+But then here's the kicker: I don't only want to use this visualizer for plain JavaScript execution, but also (separately) for the visualization of the React hooks render process. (To show the hooks' "hidden" underlying state, and how the whole function gets called on every render, etc.) This is another (quircky) case of an API that needs to be "lifted" to be able to work with iterators/generators. Because how do we deal with a situation like this?
 
 ```js
 function* MyTranspiledComponent() {
