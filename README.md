@@ -73,7 +73,7 @@ This also means that generator functions are not supported in the user's code ðŸ
 
 ### Syntactic call-site context binding of function invocations
 
-It was a bit tricky to get function calling work as expected. JavaScript has an odd language feature where the semantics of a call expression depends on whether the callee is syntactically either a member expression or not. I call this _syntactic call-site context binding._ For example, `o.f(41)` sets `this` inside of the function to be `o`, whereas `(yield _expr(..., o.f))(41)`, even though the callee still refers to the same function, sets `this` inside of the function to `undefined`. To overcome this problem, you have to perform a more subtle transpilation. The end result is as follows.
+It was a bit tricky to get function calling to work as expected. JavaScript has an odd language feature where the semantics of a call expression depends on whether the callee is syntactically either a member expression or not. I call this _syntactic call-site context binding._ For example, `o.f(41)` sets `this` inside of the function to be `o`, whereas `(yield _expr(..., o.f))(41)`, even though the callee still refers to the same function, sets `this` inside of the function to `undefined` (or whatever). To overcome this problem, you have to perform a more subtle transpilation. The end-result is as follows.
 
 We transpile JS like this:
 
